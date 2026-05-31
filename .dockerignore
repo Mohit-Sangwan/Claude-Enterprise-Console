@@ -1,0 +1,25 @@
+# Build artifacts
+**/bin/
+**/obj/
+**/out/
+**/publish/
+
+# Tests / IDE
+.vs/
+.vscode/
+.idea/
+*.user
+
+# Local dbs / logs
+*.db
+*.db-*
+*.log
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore

@@ -1,0 +1,36 @@
+name: claude-enterprise
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: claude-enterprise-api:local
+    ports:
+      - "8080:8080"
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      Security__ApiKeys__0: ${API_KEY:-}
+      OpenTelemetry__OtlpEndpoint: http://otel-collector:4317
+    depends_on:
+      otel-collector:
+        condition: service_started
+    volumes:
+      - api-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health/live"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.111.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./deploy/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "4317:4317"  # OTLP gRPC
+      - "4318:4318"  # OTLP HTTP
+
+volumes:
+  api-data:

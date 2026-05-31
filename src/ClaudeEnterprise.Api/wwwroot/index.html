@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Claude Enterprise Console</title>
+    <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='30' fill='%23d97706'/><text x='32' y='42' font-size='34' text-anchor='middle' fill='white' font-family='system-ui'>C</text></svg>" />
+    <link rel="stylesheet" href="./assets/styles.css" />
+  </head>
+  <body>
+    <div id="app" class="app">
+      <aside class="sidebar" aria-label="Conversations">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">C</span>
+          <div>
+            <div class="brand-title">Claude Enterprise</div>
+            <div class="brand-sub">AI Console</div>
+          </div>
+        </div>
+        <button id="new-chat" class="btn btn-primary">＋ New conversation</button>
+        <nav id="conversations" class="conv-list" aria-live="polite"></nav>
+        <div class="sidebar-footer">
+          <div class="status" id="health-status">
+            <span class="dot"></span>
+            <span class="label">checking…</span>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div class="topbar-left">
+            <h1 id="conversation-title">New conversation</h1>
+            <span class="badge" id="model-badge">claude-sonnet-4-5</span>
+          </div>
+          <details class="settings">
+            <summary class="btn btn-ghost" title="Settings">⚙ Settings</summary>
+            <div class="settings-panel">
+              <label class="full">Model
+                <select id="opt-model" aria-label="Model"></select>
+                <small id="model-hint" class="hint-inline"></small>
+              </label>
+              <label>Max tokens
+                <input id="opt-max" type="number" value="1024" min="1" max="16000" />
+              </label>
+              <label>Temperature
+                <input id="opt-temp" type="number" step="0.1" min="0" max="1" value="0.7" />
+              </label>
+              <label class="full">System prompt
+                <textarea id="opt-system" rows="3" placeholder="Optional override…"></textarea>
+              </label>
+              <label class="inline">
+                <input id="opt-stream" type="checkbox" checked /> Stream responses
+              </label>
+            </div>
+          </details>
+        </header>
+
+        <section class="messages" id="messages" aria-live="polite"></section>
+
+        <form class="composer" id="composer" autocomplete="off">
+          <textarea
+            id="input"
+            placeholder="Ask anything… (Shift+Enter for newline)"
+            rows="1"
+            aria-label="Message"
+            required></textarea>
+          <button class="btn btn-primary" type="submit" id="send-btn">
+            <span class="send-label">Send</span>
+            <span class="send-spinner" aria-hidden="true"></span>
+          </button>
+          <button class="btn btn-ghost" type="button" id="stop-btn" hidden title="Stop streaming (Esc)">■ Stop</button>
+        </form>
+        <div class="hint">
+          Enter to send · Shift+Enter for newline · Esc to stop ·
+          <a href="#" id="set-key">set API key</a> ·
+          <a href="#" id="show-usage">usage</a>
+        </div>
+      </main>
+    </div>
+
+    <template id="msg-template">
+      <article class="msg">
+        <div class="avatar"></div>
+        <div class="bubble">
+          <div class="meta"><span class="role"></span><span class="ts"></span></div>
+          <div class="content"></div>
+        </div>
+      </article>
+    </template>
+
+    <script type="module" src="./assets/app.js"></script>
+  </body>
+</html>
