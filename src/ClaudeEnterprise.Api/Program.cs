@@ -3,6 +3,8 @@ using Asp.Versioning;
 using ClaudeEnterprise.Api.HealthChecks;
 using ClaudeEnterprise.Api.Middleware;
 using ClaudeEnterprise.Api.Security;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using ClaudeEnterprise.Application.Chat;
 using ClaudeEnterprise.Infrastructure;
 using ClaudeEnterprise.Infrastructure.Persistence;
@@ -103,27 +105,79 @@ builder.Services.AddSwaggerGen(c =>
         Type = SecuritySchemeType.ApiKey,
         Scheme = ApiKeyAuthenticationOptions.Scheme,
     });
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Description = "OIDC/JWT bearer token. Enabled when Security:Jwt:Authority is configured.",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+    });
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = ApiKeyAuthenticationOptions.Scheme,
-                },
-            },
+            new OpenApiSecurityScheme { Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = ApiKeyAuthenticationOptions.Scheme } },
+            Array.Empty<string>()
+        },
+        {
+            new OpenApiSecurityScheme { Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" } },
             Array.Empty<string>()
         },
     });
 });
 
 // ── Authentication / Authorization ───────────────────────────────────────────
-builder.Services
-    .AddAuthentication(ApiKeyAuthenticationOptions.Scheme)
+const string SmartScheme = "Smart";
+var securitySection = builder.Configuration.GetSection(SecurityOptions.SectionName);
+var jwtAuthority = securitySection.GetValue<string>("Jwt:Authority");
+var jwtAudience = securitySection.GetValue<string>("Jwt:Audience");
+var jwtRequireHttps = securitySection.GetValue<bool?>("Jwt:RequireHttpsMetadata") ?? !builder.Environment.IsDevelopment();
+
+var authBuilder = builder.Services
+    .AddAuthentication(SmartScheme)
+    .AddPolicyScheme(SmartScheme, SmartScheme, o =>
+    {
+        o.ForwardDefaultSelector = ctx =>
+        {
+            var auth = ctx.Request.Headers.Authorization.ToString();
+            return !string.IsNullOrEmpty(auth) && auth.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+                ? JwtBearerDefaults.AuthenticationScheme
+                : ApiKeyAuthenticationOptions.Scheme;
+        };
+    })
     .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthenticationOptions.Scheme, _ => { });
-builder.Services.AddAuthorization();
+
+if (!string.IsNullOrWhiteSpace(jwtAuthority))
+{
+    authBuilder.AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, o =>
+    {
+        o.Authority = jwtAuthority;
+        o.Audience = jwtAudience;
+        o.RequireHttpsMetadata = jwtRequireHttps;
+        o.MapInboundClaims = false;
+        o.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = !string.IsNullOrWhiteSpace(jwtAudience),
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromMinutes(2),
+            NameClaimType = "sub",
+            RoleClaimType = "roles",
+        };
+    });
+}
+else
+{
+    // Stub bearer handler so [Authorize] with Bearer scheme doesn't crash when JWT is not configured.
+    authBuilder.AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, o =>
+    {
+        o.RequireHttpsMetadata = false;
+        o.TokenValidationParameters = new TokenValidationParameters { ValidateIssuer = false, ValidateAudience = false, ValidateLifetime = false, SignatureValidator = (t, _) => new System.IdentityModel.Tokens.Jwt.JwtSecurityToken(t) };
+    });
+}
+
+builder.Services.AddAuthorization(AuthorizationPolicies.Register);
 
 // ── Health checks (liveness + readiness) ─────────────────────────────────────
 builder.Services.AddHealthChecks()

@@ -42,13 +42,18 @@ public sealed class AuditLogMiddleware
         finally
         {
             sw.Stop();
-            var user = ctx.User?.FindFirstValue(ClaimTypes.Name) ?? "anonymous";
+            var user = ctx.User?.FindFirstValue(ClaimTypes.NameIdentifier)
+                       ?? ctx.User?.FindFirstValue("sub")
+                       ?? ctx.User?.FindFirstValue(ClaimTypes.Name)
+                       ?? "anonymous";
+            var qs = PiiRedactor.Scrub(ctx.Request.QueryString.Value ?? string.Empty);
             _logger.LogInformation(
-                "AUDIT method={Method} path={Path} status={Status} user={User} ip={Ip} ms={Elapsed} corrId={CorrelationId}",
+                "AUDIT method={Method} path={Path} qs={Query} status={Status} user={User} ip={Ip} ms={Elapsed} corrId={CorrelationId}",
                 ctx.Request.Method,
-                path,
+                PiiRedactor.Scrub(path),
+                qs,
                 ctx.Response.StatusCode,
-                user,
+                PiiRedactor.Scrub(user),
                 ctx.Connection.RemoteIpAddress?.ToString(),
                 sw.ElapsedMilliseconds,
                 ctx.TraceIdentifier);

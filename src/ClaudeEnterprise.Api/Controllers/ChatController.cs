@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using Asp.Versioning;
+using ClaudeEnterprise.Api.Security;
 using ClaudeEnterprise.Application.Chat;
 using ClaudeEnterprise.Domain.Chat;
 using Microsoft.AspNetCore.Authorization;
@@ -29,6 +30,7 @@ public sealed class ChatController : ControllerBase
 
     /// <summary>Non-streaming completion.</summary>
     [HttpPost("messages")]
+    [Authorize(Policy = AuthorizationPolicies.ChatWrite)]
     [ProducesResponseType(typeof(SendMessageResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<SendMessageResponse>> Send(
         [FromBody] SendMessageRequest request, CancellationToken ct)
@@ -39,6 +41,7 @@ public sealed class ChatController : ControllerBase
 
     /// <summary>Server-Sent Events streaming endpoint.</summary>
     [HttpPost("messages/stream")]
+    [Authorize(Policy = AuthorizationPolicies.ChatWrite)]
     public async Task Stream([FromBody] SendMessageRequest request, CancellationToken ct)
     {
         Response.Headers["Content-Type"] = "text/event-stream";
@@ -56,6 +59,7 @@ public sealed class ChatController : ControllerBase
     }
 
     [HttpGet("conversations")]
+    [Authorize(Policy = AuthorizationPolicies.ChatRead)]
     [ProducesResponseType(typeof(ConversationPage), StatusCodes.Status200OK)]
     public async Task<ActionResult<ConversationPage>> List(
         [FromQuery] int pageSize = 25,
@@ -64,6 +68,7 @@ public sealed class ChatController : ControllerBase
         => Ok(await _repo.PageAsync(pageSize, cursor, ct).ConfigureAwait(false));
 
     [HttpGet("conversations/{id:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.ChatRead)]
     [ProducesResponseType(typeof(Conversation), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status304NotModified)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -81,6 +86,7 @@ public sealed class ChatController : ControllerBase
     }
 
     [HttpDelete("conversations/{id:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.ChatWrite)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
